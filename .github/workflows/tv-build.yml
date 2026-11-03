@@ -1,0 +1,57 @@
+name: TV build
+
+# Builds the APK for Momo's TCL TV. Runs on every push to main, or by hand from the Actions tab.
+# Upstream files stay untouched: the TV settings below are applied on the build machine only.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Use JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: "zulu"
+          java-version: "21"
+          cache: "gradle"
+
+      - name: TV settings (app id, 32-bit only, name, fixed signing key)
+        run: |
+          set -e
+          f=app/build.gradle.kts
+          s=app/src/main/res/values/strings.xml
+          # Stop with an error if upstream ever changes these lines, instead of building the wrong thing
+          grep -q 'applicationId = "io.github.jqssun.airplay"' $f
+          grep -q '^val allAbis = listOf(' $f
+          grep -q '<string name="app_name">AirPlay Server</string>' $s
+          sed -i 's/applicationId = "io.github.jqssun.airplay"/applicationId = "com.homehub.airplay"/' $f
+          sed -i 's/^val allAbis = listOf(.*)/val allAbis = listOf("armeabi-v7a")/' $f
+          sed -i 's|<string name="app_name">AirPlay Server</string>|<string name="app_name">AirPlay (nuevo)</string>|' $s
+          grep -q 'com.homehub.airplay' $f
+          grep -q 'listOf("armeabi-v7a")' $f
+          printf 'storeFile=%s\nstorePassword=android\nkeyAlias=airplay\nkeyPassword=android\n' \
+            "$GITHUB_WORKSPACE/tv/airplay.keystore" > local.properties
+
+      - name: Build
+        run: |
+          export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
+          chmod +x ./gradlew
+          ./gradlew assembleRelease --stacktrace
+
+      - name: Collect APK
+        run: |
+          mkdir dist
+          cp app/build/outputs/apk/release/app-release.apk dist/airplay-nuevo.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AirPlay-apk
+          path: dist/
