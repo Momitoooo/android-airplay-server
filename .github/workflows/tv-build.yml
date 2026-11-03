@@ -34,7 +34,7 @@ jobs:
           grep -q '<string name="app_name">AirPlay Server</string>' $s
           sed -i 's/applicationId = "io.github.jqssun.airplay"/applicationId = "com.homehub.airplay"/' $f
           sed -i 's/^val allAbis = listOf(.*)/val allAbis = listOf("armeabi-v7a")/' $f
-          sed -i 's|<string name="app_name">AirPlay Server</string>|<string name="app_name">AirPlay (nuevo)</string>|' $s
+          sed -i 's|<string name="app_name">AirPlay Server</string>|<string name="app_name">AirPlay</string>|' $s
           grep -q 'com.homehub.airplay' $f
           grep -q 'listOf("armeabi-v7a")' $f
           printf 'storeFile=%s\nstorePassword=android\nkeyAlias=airplay\nkeyPassword=android\n' \
