@@ -76,7 +76,8 @@ fun TvReadyScreen(viewModel: MainViewModel, onSettings: () -> Unit) {
     val startFocus = remember { FocusRequester() }
 
     LaunchedEffect(running) {
-        if (running) settingsFocus.requestFocusUntilLanded() else startFocus.requestFocusUntilLanded()
+        // generous retries: focus must land again when coming back from Ajustes
+        if (running) settingsFocus.requestFocusUntilLanded(attempts = 30) else startFocus.requestFocusUntilLanded(attempts = 30)
     }
 
     Box(modifier = Modifier.fillMaxSize().background(TvStyle.Ground)) {

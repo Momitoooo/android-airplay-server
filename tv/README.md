@@ -12,3 +12,5 @@
 - 3a: `ui/TvReady.kt` (new: "Listo para AirPlay" screen, shared TV button/chip/colours), `ui/MainScreen.kt`
   (3 small hooks, marked "Momo's TV redesign"), `res/drawable/banner.xml` (Favoritos banner),
   `res/drawable/tv_ic_*.xml` (new glyphs). When syncing the fork, re-check those hooks.
+- 3c: `ui/TvSettings.kt` (new: "Ajustes de AirPlay", Spanish, remote-friendly; replaces the upstream settings
+  on the TV while nobody is connected). MainScreen hook now switches between TvReadyScreen and TvSettingsScreen.

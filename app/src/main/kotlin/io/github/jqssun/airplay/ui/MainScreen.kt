@@ -98,8 +98,8 @@ fun MainScreen(
 ) {
     var tab by remember { mutableStateOf(Tab.OVERVIEW) }
     var fullscreen by remember { mutableStateOf(false) }
-    // Momo's TV redesign: false = TvReadyScreen while nobody is connected; true = the original tabs (Ajustes)
-    var tvTabs by remember { mutableStateOf(false) }
+    // Momo's TV redesign: while nobody is connected, TvReadyScreen or (after Ajustes) TvSettingsScreen
+    var tvSettings by remember { mutableStateOf(false) }
     val tv = isTv()
     val pin by viewModel.pinCode.collectAsState()
     val connections by viewModel.connectionCount.collectAsState()
@@ -518,10 +518,10 @@ fun MainScreen(
             onExitFullscreen = { fullscreen = false },
             onPip = onPip
         )
-    } else if (tv && !tvTabs && connections == 0) {
-        TvReadyScreen(viewModel, onSettings = { tab = Tab.SETTINGS; tvTabs = true })
+    } else if (tv && connections == 0) {
+        if (tvSettings) TvSettingsScreen(viewModel, onBack = { tvSettings = false })
+        else TvReadyScreen(viewModel, onSettings = { tvSettings = true })
     } else {
-        if (tv && tvTabs) BackHandler { tvTabs = false; tab = Tab.OVERVIEW }
         Scaffold(
             bottomBar = {
                 Column {
