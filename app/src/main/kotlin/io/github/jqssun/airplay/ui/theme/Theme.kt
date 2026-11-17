@@ -9,10 +9,11 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import io.github.jqssun.airplay.ui.isTvDevice
 
 @Composable
 fun AirPlayTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = isSystemInDarkTheme() || LocalContext.current.isTvDevice(), // the TV is always dark
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

@@ -193,7 +193,7 @@ private fun TvRow(
         modifier = modifier
             .fillMaxWidth()
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .shadow((TV_LIFT_DP * p).dp, shape)
+            .shadow(if (focused) (TV_LIFT_DP * p).dp else 0.dp, shape)   // not while unfocused: it would show through the see-through fill
             .clip(shape)
             .background(if (focused) Color.White else TvStyle.Tile)
             .clickable(interactionSource = source, indication = null, onClick = onClick)

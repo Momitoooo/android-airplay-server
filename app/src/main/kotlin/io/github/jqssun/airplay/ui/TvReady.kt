@@ -240,7 +240,7 @@ fun TvPillButton(text: String, icon: Painter?, onClick: () -> Unit, modifier: Mo
     Row(
         modifier = modifier
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .shadow((TV_LIFT_DP * p).dp, shape)
+            .shadow(if (focused) (TV_LIFT_DP * p).dp else 0.dp, shape)   // not while unfocused: it would show through the see-through fill
             .clip(shape)
             .background(if (focused) Color.White else TvStyle.Tile)
             .then(if (focused) Modifier else Modifier.border(0.5.dp, TvStyle.Edge, shape))
