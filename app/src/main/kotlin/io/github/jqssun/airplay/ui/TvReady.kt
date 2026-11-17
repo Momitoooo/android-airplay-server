@@ -3,9 +3,13 @@ package io.github.jqssun.airplay.ui
 // Momo's TV redesign (sub-stage 3a): the screen shown while nobody is connected.
 // Kept in its own file so upstream changes to MainScreen.kt stay easy to merge.
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -38,7 +42,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
@@ -56,6 +62,11 @@ import io.github.jqssun.airplay.viewmodel.MainViewModel
 /** Design tokens shared with Momo's other TV apps (Home Hub, Backlight Sync). */
 object TvStyle {
     val Ground = Color(0xFF101218)
+    /** The iPad dashboard's ground: purple to navy to black, diagonally. */
+    val GroundBrush = Brush.linearGradient(listOf(Color(0xFF2A1450), Color(0xFF10204A), Color(0xFF07070B)))
+    val Card = Color(0x12FFFFFF)     // 7% white: a room card over the ground
+    val Tile = Color(0x17FFFFFF)     // 9% white: a tile on top of a card
+    val Edge = Color(0x17FFFFFF)     // 1 px edge (0.5 dp at 2x)
     val Label = Color(0xFFF5F5F7)
     val Label2 = Color(0xA3EBEBF5)   // 64%
     val Label3 = Color(0x99EBEBF5)   // 60%
@@ -66,6 +77,22 @@ object TvStyle {
     val Amber = Color(0xFFFFCB80)
     val Red = Color(0xFFFF453A)
 }
+
+/** A see-through material with a 1 px edge all round (a top rim would show through the fill). */
+fun Modifier.tvSurface(fill: Color, radius: Int, border: Boolean = true): Modifier {
+    val shape: Shape = RoundedCornerShape(radius.dp)
+    return this.background(fill, shape).then(if (border) Modifier.border(0.5.dp, TvStyle.Edge, shape) else Modifier)
+}
+
+/** Focus progress 0..1 on a critically damped spring (response ~0.3 s); it starts from where it is, so it can be interrupted. */
+@Composable
+fun focusSpring(focused: Boolean): Float = animateFloatAsState(
+    targetValue = if (focused) 1f else 0f,
+    animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+    label = "focus"
+).value
+
+const val TV_LIFT_DP = 20
 
 @Composable
 fun TvReadyScreen(viewModel: MainViewModel, onSettings: () -> Unit) {
@@ -80,13 +107,15 @@ fun TvReadyScreen(viewModel: MainViewModel, onSettings: () -> Unit) {
         if (running) settingsFocus.requestFocusUntilLanded(attempts = 30) else startFocus.requestFocusUntilLanded(attempts = 30)
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(TvStyle.Ground)) {
+    Box(modifier = Modifier.fillMaxSize().background(TvStyle.GroundBrush)) {
         Column(
-            modifier = Modifier.align(Alignment.Center),
+            modifier = Modifier.align(Alignment.Center)
+                .tvSurface(TvStyle.Card, 30)
+                .padding(horizontal = 52.dp, vertical = 36.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
-                modifier = Modifier.size(105.dp).clip(CircleShape).background(Color(0x14EBEBF5)),
+                modifier = Modifier.size(105.dp).clip(CircleShape).background(TvStyle.Tile),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -97,29 +126,33 @@ fun TvReadyScreen(viewModel: MainViewModel, onSettings: () -> Unit) {
                 )
             }
             Spacer(Modifier.height(24.dp))
-            Text(
-                text = when (state) {
-                    ServerState.RUNNING -> "Listo para AirPlay"
-                    ServerState.ERROR -> "No se pudo iniciar AirPlay"
-                    else -> "AirPlay está parado"
-                },
-                color = TvStyle.Label,
-                fontSize = 39.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.02).em
-            )
+            Crossfade(targetState = state, animationSpec = tween(220), label = "headline") { s ->
+                Text(
+                    text = when (s) {
+                        ServerState.RUNNING -> "Listo para AirPlay"
+                        ServerState.ERROR -> "No se pudo iniciar AirPlay"
+                        else -> "AirPlay está parado"
+                    },
+                    color = TvStyle.Label,
+                    fontSize = 39.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.02).em
+                )
+            }
             Spacer(Modifier.height(12.dp))
-            Text(
-                text = if (running)
-                    "En tu iPhone o Mac, abre el Centro de control, toca Duplicar pantalla y elige «$name»."
-                else
-                    "Pulsa Iniciar para que tu iPhone o Mac encuentren la TV.",
-                color = TvStyle.Label2,
-                fontSize = 15.sp,
-                lineHeight = 22.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.widthIn(max = 510.dp)
-            )
+            Crossfade(targetState = running, animationSpec = tween(220), label = "hint") { r ->
+                Text(
+                    text = if (r)
+                        "En tu iPhone o Mac, abre el Centro de control, toca Duplicar pantalla y elige «$name»."
+                    else
+                        "Pulsa Iniciar para que tu iPhone o Mac encuentren la TV.",
+                    color = TvStyle.Label2,
+                    fontSize = 15.sp,
+                    lineHeight = 22.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.widthIn(max = 510.dp)
+                )
+            }
             Spacer(Modifier.height(26.dp))
             if (running) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -142,24 +175,26 @@ fun TvReadyScreen(viewModel: MainViewModel, onSettings: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Box(
-                Modifier.size(8.dp).clip(CircleShape).background(
-                    when (state) {
-                        ServerState.RUNNING -> TvStyle.Green
-                        ServerState.ERROR -> TvStyle.Red
-                        else -> TvStyle.Amber
-                    }
-                )
-            )
-            Text(
-                text = when (state) {
-                    ServerState.RUNNING -> "Visible como «$name»"
-                    ServerState.ERROR -> "Error al iniciar el receptor"
-                    else -> "No visible en la red"
+            val dot by animateColorAsState(
+                when (state) {
+                    ServerState.RUNNING -> TvStyle.Green
+                    ServerState.ERROR -> TvStyle.Red
+                    else -> TvStyle.Amber
                 },
-                color = TvStyle.Label3,
-                fontSize = 12.sp
+                tween(220), label = "dot"
             )
+            Box(Modifier.size(8.dp).clip(CircleShape).background(dot))
+            Crossfade(targetState = state, animationSpec = tween(220), label = "status") { s ->
+                Text(
+                    text = when (s) {
+                        ServerState.RUNNING -> "Visible como «$name»"
+                        ServerState.ERROR -> "Error al iniciar el receptor"
+                        else -> "No visible en la red"
+                    },
+                    color = TvStyle.Label3,
+                    fontSize = 12.sp
+                )
+            }
         }
 
         TvPillButton(
@@ -179,8 +214,7 @@ fun TvReadyScreen(viewModel: MainViewModel, onSettings: () -> Unit) {
 fun TvChip(icon: Painter, text: String) {
     Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(TvStyle.Chip)
+            .tvSurface(TvStyle.Tile, 16)
             .height(32.dp)
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -192,26 +226,24 @@ fun TvChip(icon: Painter, text: String) {
 }
 
 /**
- * tvOS-style button: glass at rest; when focused it turns white with dark text, grows (x1.06) and lifts,
+ * tvOS-style button: glass at rest; when focused it turns white with dark text, grows (x1.08) and lifts 20 dp,
  * on a critically damped spring (no bounce). Same behaviour as the buttons in Home Hub.
  */
 @Composable
 fun TvPillButton(text: String, icon: Painter?, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val source = remember { MutableInteractionSource() }
     val focused by source.collectIsFocusedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (focused) 1.06f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
-        label = "lift"
-    )
+    val p = focusSpring(focused)
+    val scale = 1f + 0.08f * p
     val shape = RoundedCornerShape(18.dp)
     val fg = if (focused) TvStyle.Dark else TvStyle.Label
     Row(
         modifier = modifier
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .shadow(if (focused) 14.dp else 0.dp, shape)
+            .shadow((TV_LIFT_DP * p).dp, shape)
             .clip(shape)
-            .background(if (focused) Color.White else TvStyle.Glass)
+            .background(if (focused) Color.White else TvStyle.Tile)
+            .then(if (focused) Modifier else Modifier.border(0.5.dp, TvStyle.Edge, shape))
             .clickable(interactionSource = source, indication = null, onClick = onClick)
             .height(36.dp)
             .padding(horizontal = 18.dp),

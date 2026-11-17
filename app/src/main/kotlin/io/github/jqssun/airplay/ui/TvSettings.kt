@@ -6,8 +6,12 @@ package io.github.jqssun.airplay.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -80,10 +84,10 @@ fun TvSettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
 
     LaunchedEffect(Unit) { first.requestFocusUntilLanded(attempts = 30) }
 
-    Column(modifier = Modifier.fillMaxSize().background(TvStyle.Ground).padding(start = 60.dp, end = 60.dp, top = 36.dp)) {
+    Column(modifier = Modifier.fillMaxSize().background(TvStyle.GroundBrush).padding(start = 60.dp, end = 60.dp, top = 36.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(
-                Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(TvStyle.Glass),
+                Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(TvStyle.Tile),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Rounded.Settings, contentDescription = null, tint = TvStyle.Label, modifier = Modifier.size(20.dp))
@@ -136,7 +140,7 @@ fun TvSettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
             if (clean.isNotEmpty()) viewModel.set(Prefs.SERVER_NAME, clean)
             editingName = false
         }
-        AlertDialog(
+        MaterialTheme(colorScheme = darkColorScheme()) { AlertDialog(
             onDismissRequest = { editingName = false },
             title = { Text("Nombre del receptor") },
             text = {
@@ -150,13 +154,16 @@ fun TvSettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
             },
             confirmButton = { TextButton(onClick = { save() }) { Text("Guardar") } },
             dismissButton = { TextButton(onClick = { editingName = false }) { Text("Cancelar") } }
-        )
+        ) }
     }
 }
 
 @Composable
 private fun TvGroup(title: String, rows: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.fillMaxWidth().tvSurface(TvStyle.Card, 24).padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)
+    ) {
         Text(
             title.uppercase(),
             color = TvStyle.Label3,
@@ -179,19 +186,16 @@ private fun TvRow(
 ) {
     val source = remember { MutableInteractionSource() }
     val focused by source.collectIsFocusedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (focused) 1.03f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
-        label = "lift"
-    )
+    val p = focusSpring(focused)
+    val scale = 1f + 0.04f * p   // full-width rows: 1.04, not 1.08, or they would spill out of their card
     val shape = RoundedCornerShape(12.dp)
     Row(
         modifier = modifier
             .fillMaxWidth()
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .shadow(if (focused) 12.dp else 0.dp, shape)
+            .shadow((TV_LIFT_DP * p).dp, shape)
             .clip(shape)
-            .background(if (focused) Color.White else Color(0x12FFFFFF))
+            .background(if (focused) Color.White else TvStyle.Tile)
             .clickable(interactionSource = source, indication = null, onClick = onClick)
             .height(42.dp)
             .padding(start = 16.dp, end = 12.dp),
@@ -211,11 +215,15 @@ private fun TvToggleRow(label: String, on: Boolean, onChange: (Boolean) -> Unit)
             animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
             label = "knob"
         )
+        val track by animateColorAsState(
+            if (on) TvStyle.Green else if (focused) Color(0x3D787880) else Color(0x5C787880),
+            tween(220), label = "track"
+        )
         Box(
             Modifier
                 .width(38.dp).height(23.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(if (on) TvStyle.Green else if (focused) Color(0x3D787880) else Color(0x5C787880))
+                .background(track)
         ) {
             Box(
                 Modifier
@@ -232,10 +240,12 @@ private fun TvToggleRow(label: String, on: Boolean, onChange: (Boolean) -> Unit)
 @Composable
 private fun TvValueRow(label: String, value: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     TvRow(label, modifier, onClick) { focused ->
-        Text(
-            "$value  ›",
-            color = if (focused) Color(0xBF3C3C43) else Color(0x99EBEBF5),
-            fontSize = 13.sp
-        )
+        Crossfade(targetState = value, animationSpec = tween(220), label = "value") { v ->
+            Text(
+                "$v  ›",
+                color = if (focused) Color(0xBF3C3C43) else Color(0x99EBEBF5),
+                fontSize = 13.sp
+            )
+        }
     }
 }
